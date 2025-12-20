@@ -1,9 +1,10 @@
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.HashMap;
 
 /**
@@ -95,7 +96,7 @@ public class BasicDataOperationUsingMap {
         public int compareTo(Boa other) {
             if (other == null) return 1;
             
-            // Спочатку порівнюємо за кличкою (за зростанням; null у кінці)
+            // Спочатку порівнюємо за кличкою (за спаданням; null у кінці)
             int nicknameComparison;
             if (this.nickname == null && other.nickname == null) {
                 nicknameComparison = 0;
@@ -255,9 +256,9 @@ public class BasicDataOperationUsingMap {
         System.out.println("\n=== Пари ключ-значення в HashMap ===");
         long timeStart = System.nanoTime();
 
-        for (Map.Entry<Boa, String> entry : hashmap.entrySet()) {
-            System.out.println("  " + entry.getKey() + " -> " + entry.getValue());
-        }
+        hashmap.entrySet().forEach(entry ->
+                System.out.println("  " + entry.getKey() + " -> " + entry.getValue())
+        );
 
         PerformanceTracker.displayOperationTime(timeStart, "виведення пари ключ-значення в HashMap");
     }
@@ -270,18 +271,15 @@ public class BasicDataOperationUsingMap {
     private void sortHashMap() {
         long timeStart = System.nanoTime();
 
-        // Створюємо список ключів і сортуємо за природним порядком Pet
-        List<Boa> sortedKeys = new ArrayList<>(hashmap.keySet());
-        Collections.sort(sortedKeys);
-        
-        // Створюємо нову мапу з відсортованими ключами (щоб зберегти порядок ітерації)
-        LinkedHashMap<Boa, String> sortedHashMap = new LinkedHashMap<>();
-        for (Boa key : sortedKeys) {
-            sortedHashMap.put(key, hashmap.get(key));
-        }
-        
-        // Перезаписуємо оригінальну hashmap
-        hashmap = sortedHashMap;
+        // Сортуємо за ключами (Boa.compareTo()) і збираємо в LinkedHashMap, щоб зберегти порядок ітерації
+        hashmap = hashmap.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        HashMap::new
+                ));
 
         PerformanceTracker.displayOperationTime(timeStart, "сортування HashMap за ключами");
     }
@@ -293,16 +291,16 @@ public class BasicDataOperationUsingMap {
     void findByKeyInHashMap() {
         long timeStart = System.nanoTime();
 
-        boolean found = hashmap.containsKey(KEY_TO_SEARCH_AND_DELETE);
+        Optional<Map.Entry<Boa, String>> foundEntry = hashmap.entrySet().stream()
+                .filter(entry -> KEY_TO_SEARCH_AND_DELETE.equals(entry.getKey()))
+                .findFirst();
 
-        PerformanceTracker.displayOperationTime(timeStart, "пошук за ключем в HashMap");
+        PerformanceTracker.displayOperationTime(timeStart, "пошук за ключем в HashMap (Stream.filter)");
 
-        if (found) {
-            String value = hashmap.get(KEY_TO_SEARCH_AND_DELETE);
-            System.out.println("Елемент з ключем '" + KEY_TO_SEARCH_AND_DELETE + "' знайдено. Власник: " + value);
-        } else {
-            System.out.println("Елемент з ключем '" + KEY_TO_SEARCH_AND_DELETE + "' відсутній в HashMap.");
-        }
+        foundEntry.ifPresentOrElse(
+                entry -> System.out.println("Елемент з ключем '" + KEY_TO_SEARCH_AND_DELETE + "' знайдено. Власник: " + entry.getValue()),
+                () -> System.out.println("Елемент з ключем '" + KEY_TO_SEARCH_AND_DELETE + "' відсутній в HashMap.")
+        );
     }
 
     /**
@@ -313,9 +311,10 @@ public class BasicDataOperationUsingMap {
         long timeStart = System.nanoTime();
 
         // Створюємо список Entry та сортуємо за значеннями
-        List<Map.Entry<Boa, String>> entries = new ArrayList<>(hashmap.entrySet());
         OwnerValueComparator comparator = new OwnerValueComparator();
-        Collections.sort(entries, comparator);
+        List<Map.Entry<Boa, String>> entries = hashmap.entrySet().stream()
+                .sorted(comparator)
+                .collect(Collectors.toList());
 
         // Створюємо тимчасовий Entry для пошуку
         Map.Entry<Boa, String> searchEntry = new Map.Entry<Boa, String>() {
@@ -355,7 +354,12 @@ public class BasicDataOperationUsingMap {
     void removeByKeyFromHashMap() {
         long timeStart = System.nanoTime();
 
-        String removedValue = hashmap.remove(KEY_TO_SEARCH_AND_DELETE);
+        String removedValue = hashmap.entrySet().stream()
+                .filter(entry -> KEY_TO_SEARCH_AND_DELETE.equals(entry.getKey()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .map(hashmap::remove)
+                .orElse(null);
 
         PerformanceTracker.displayOperationTime(timeStart, "видалення за ключем з HashMap");
 
@@ -372,16 +376,12 @@ public class BasicDataOperationUsingMap {
     void removeByValueFromHashMap() {
         long timeStart = System.nanoTime();
 
-        List<Boa> keysToRemove = new ArrayList<>();
-        for (Map.Entry<Boa, String> entry : hashmap.entrySet()) {
-            if (entry.getValue() != null && entry.getValue().equals(VALUE_TO_SEARCH_AND_DELETE)) {
-                keysToRemove.add(entry.getKey());
-            }
-        }
+        List<Boa> keysToRemove = hashmap.entrySet().stream()
+            .filter(entry -> entry.getValue() != null && entry.getValue().equals(VALUE_TO_SEARCH_AND_DELETE))
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
         
-        for (Boa key : keysToRemove) {
-            hashmap.remove(key);
-        }
+        keysToRemove.forEach(hashmap::remove);
 
         PerformanceTracker.displayOperationTime(timeStart, "видалення за значенням з HashMap");
 
@@ -398,9 +398,10 @@ public class BasicDataOperationUsingMap {
         System.out.println("\n=== Пари ключ-значення в LinkedHashMap ===");
 
         long timeStart = System.nanoTime();
-        for (Map.Entry<Boa, String> entry : linkedHashmap.entrySet()) {
-            System.out.println("  " + entry.getKey() + " -> " + entry.getValue());
-        }
+        
+        linkedHashmap.entrySet().forEach(entry ->
+            System.out.println("  " + entry.getKey() + " -> " + entry.getValue())
+        );
 
         PerformanceTracker.displayOperationTime(timeStart, "виведення пар ключ-значення в LinkedHashMap");
     }
@@ -413,19 +414,14 @@ public class BasicDataOperationUsingMap {
     private void sortLinkedHashMap() {
         long timeStart = System.nanoTime();
 
-        // Створюємо список ключів і сортуємо за природним порядком Pet
-        List<Boa> sortedKeys = new ArrayList<>(linkedHashmap.keySet());
-        Collections.sort(sortedKeys);
-        
-        // Створюємо нову LinkedHashMap з відсортованими ключами
-        LinkedHashMap<Boa, String> sortedLinkedHashMap = new LinkedHashMap<>();
-        for (Boa key : sortedKeys) {
-            // ВАЖЛИВО: значення треба брати саме з linkedHashmap, а не з hashmap
-            sortedLinkedHashMap.put(key, linkedHashmap.get(key));
-        }
-        
-        // Перезаписуємо оригінальну linkedHashmap
-        linkedHashmap = sortedLinkedHashMap;
+        linkedHashmap = linkedHashmap.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        LinkedHashMap::new
+                ));
 
         PerformanceTracker.displayOperationTime(timeStart, "сортування LinkedHashMap за ключами");
     }
@@ -437,16 +433,16 @@ public class BasicDataOperationUsingMap {
     void findByKeyInLinkedHashMap() {
         long timeStart = System.nanoTime();
 
-        boolean found = linkedHashmap.containsKey(KEY_TO_SEARCH_AND_DELETE);
+        Optional<Map.Entry<Boa, String>> foundEntry = linkedHashmap.entrySet().stream()
+                .filter(entry -> KEY_TO_SEARCH_AND_DELETE.equals(entry.getKey()))
+                .findFirst();
 
-        PerformanceTracker.displayOperationTime(timeStart, "пошук за ключем в LinkedHashMap");
+        PerformanceTracker.displayOperationTime(timeStart, "пошук за ключем в LinkedHashMap (Stream.filter)");
 
-        if (found) {
-            String value = linkedHashmap.get(KEY_TO_SEARCH_AND_DELETE);
-            System.out.println("Елемент з ключем '" + KEY_TO_SEARCH_AND_DELETE + "' знайдено. Власник: " + value);
-        } else {
-            System.out.println("Елемент з ключем '" + KEY_TO_SEARCH_AND_DELETE + "' відсутній в LinkedHashMap.");
-        }
+        foundEntry.ifPresentOrElse(
+                entry -> System.out.println("Елемент з ключем '" + KEY_TO_SEARCH_AND_DELETE + "' знайдено. Власник: " + entry.getValue()),
+                () -> System.out.println("Елемент з ключем '" + KEY_TO_SEARCH_AND_DELETE + "' відсутній в LinkedHashMap.")
+        );
     }
 
     /**
@@ -457,9 +453,10 @@ public class BasicDataOperationUsingMap {
         long timeStart = System.nanoTime();
 
         // Створюємо список Entry та сортуємо за значеннями
-        List<Map.Entry<Boa, String>> entries = new ArrayList<>(linkedHashmap.entrySet());
         OwnerValueComparator comparator = new OwnerValueComparator();
-        Collections.sort(entries, comparator);
+        List<Map.Entry<Boa, String>> entries = linkedHashmap.entrySet().stream()
+                .sorted(comparator)
+                .collect(Collectors.toList());
 
         // Створюємо тимчасовий Entry для пошуку
         Map.Entry<Boa, String> searchEntry = new Map.Entry<Boa, String>() {
@@ -499,7 +496,12 @@ public class BasicDataOperationUsingMap {
     void removeByKeyFromLinkedHashMap() {
         long timeStart = System.nanoTime();
 
-        String removedValue = linkedHashmap.remove(KEY_TO_SEARCH_AND_DELETE);
+        String removedValue = linkedHashmap.entrySet().stream()
+                .filter(entry -> KEY_TO_SEARCH_AND_DELETE.equals(entry.getKey()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .map(linkedHashmap::remove)
+                .orElse(null);
 
         PerformanceTracker.displayOperationTime(timeStart, "видалення за ключем з LinkedHashMap");
 
@@ -516,16 +518,12 @@ public class BasicDataOperationUsingMap {
     void removeByValueFromLinkedHashMap() {
         long timeStart = System.nanoTime();
 
-        List<Boa> keysToRemove = new ArrayList<>();
-        for (Map.Entry<Boa, String> entry : linkedHashmap.entrySet()) {
-            if (entry.getValue() != null && entry.getValue().equals(VALUE_TO_SEARCH_AND_DELETE)) {
-                keysToRemove.add(entry.getKey());
-            }
-        }
-        
-        for (Boa key : keysToRemove) {
-            linkedHashmap.remove(key);
-        }
+        List<Boa> keysToRemove = linkedHashmap.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && entry.getValue().equals(VALUE_TO_SEARCH_AND_DELETE))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
+        keysToRemove.forEach(linkedHashmap::remove);
 
         PerformanceTracker.displayOperationTime(timeStart, "видалення за значенням з LinkedHashMap");
 

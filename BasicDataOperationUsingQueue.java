@@ -65,10 +65,11 @@ public class BasicDataOperationUsingQueue {
      * Вимiрює та виводить час, витрачений на сортування масиву в наносекундах.
      */
     private void performArraySorting() {
-        // вимірюємо тривалість упорядкування масиву дати та часу
         long timeStart = System.nanoTime();
 
-        Arrays.sort(localTimeArray);
+        localTimeArray = Arrays.stream(localTimeArray)
+            .sorted()
+            .toArray(LocalTime[]::new);
 
         PerformanceTracker.displayOperationTime(timeStart, "упорядкування масиву дати i часу");
     }
@@ -77,11 +78,14 @@ public class BasicDataOperationUsingQueue {
      * Здійснює пошук конкретного значення в масиві дати та часу.
      */
     private void findInArray() {
-        // відстежуємо час виконання пошуку в масиві
         long timeStart = System.nanoTime();
-        
-        int position = Arrays.binarySearch(this.localTimeArray, localTimeValueToSearch);
-        
+
+        int position = Arrays.stream(localTimeArray)
+            .map(Arrays.asList(localTimeArray)::indexOf)
+            .filter(i -> localTimeValueToSearch.equals(localTimeArray[i]))
+            .findFirst()
+            .orElse(-1);
+
         PerformanceTracker.displayOperationTime(timeStart, "пошук елемента в масивi дати i часу");
 
         if (position >= 0) {
@@ -100,20 +104,16 @@ public class BasicDataOperationUsingQueue {
             return;
         }
 
-        // відстежуємо час на визначення граничних значень
         long timeStart = System.nanoTime();
 
-        LocalTime minValue = localTimeArray[0];
-        LocalTime maxValue = localTimeArray[0];
+        LocalTime minValue = Arrays.stream(localTimeArray)
+                                  .min(LocalTime::compareTo)
+                                  .orElse(null);
 
-        for (LocalTime currentDateTime : localTimeArray) {
-            if (currentDateTime.isBefore(minValue)) {
-                minValue = currentDateTime;
-            }
-            if (currentDateTime.isAfter(maxValue)) {
-                maxValue = currentDateTime;
-            }
-        }
+
+        LocalTime maxValue = Arrays.stream(localTimeArray)
+                                  .max(LocalTime::compareTo)
+                                  .orElse(null);
 
         PerformanceTracker.displayOperationTime(timeStart, "визначення мiнiмальної i максимальної дати в масивi");
 
@@ -128,7 +128,8 @@ public class BasicDataOperationUsingQueue {
         // вимірюємо час пошуку в черзі
         long timeStart = System.nanoTime();
 
-        boolean elementExists = this.localTimeQueue.contains(localTimeValueToSearch);
+        boolean elementExists = localTimeQueue.stream()
+            .anyMatch(i -> i.equals(localTimeValueToSearch));
 
         PerformanceTracker.displayOperationTime(timeStart, "пошук елемента в Queue дати i часу");
 
@@ -151,8 +152,13 @@ public class BasicDataOperationUsingQueue {
         // відстежуємо час пошуку граничних значень
         long timeStart = System.nanoTime();
 
-        LocalTime minValue = Collections.min(localTimeQueue);
-        LocalTime maxValue = Collections.max(localTimeQueue);
+        LocalTime minValue = localTimeQueue.stream()
+            .min(LocalTime::compareTo)
+            .orElse(null);
+
+        LocalTime maxValue = localTimeQueue.stream()
+            .max(LocalTime::compareTo)
+            .orElse(null);
 
         PerformanceTracker.displayOperationTime(timeStart, "визначення мiнiмальної i максимальної дати в Queue");
 
